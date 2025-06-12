@@ -1,10 +1,10 @@
 package main
 
 import (
-	"net/http"
 
 	function "github.com/aman-zulfiqar/MusicList-API-Task5/functions"
-	"github.com/gorilla/mux"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -16,15 +16,19 @@ func init() {
 
 func main() {
 
-	r := mux.NewRouter()
-	r.HandleFunc("/", function.HomeHandler)
-	r.HandleFunc("/songs", function.CreateSongHandler).Methods("POST")
-	r.HandleFunc("/songs", function.FetchSongsHandler).Methods("GET")
-	r.HandleFunc("/songs/{id}", function.UpdateSongHandler).Methods("PUT")
-	r.HandleFunc("/songs/{id}", function.DeleteSongHandler).Methods("DELETE")
+	e := echo.New()
+
+	e.Use(middleware.Logger())
+	e.Use(middleware.Recover())
+
+	e.GET("/", function.HomeHandler)
+	e.POST("/songs", function.CreateSongHandler)
+	e.GET("/songs", function.FetchSongsHandler)
+	e.PUT("/songs/:id", function.UpdateSongHandler)
+	e.DELETE("/songs/:id", function.DeleteSongHandler)
 
 	log.Info("Music Playlist API is starting on :9010")
-	if err := http.ListenAndServe(":9010", r); err != nil {
+	if err := e.Start(":9010"); err != nil {
 		log.Fatalf("server failed to start: %v", err)
 	}
 }

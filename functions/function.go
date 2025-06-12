@@ -1,13 +1,12 @@
 package functions
 
 import (
-	"encoding/json"
 	"net/http"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/gorilla/mux"
+	"github.com/labstack/echo/v4"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -24,22 +23,21 @@ var (
 	mu    = &sync.Mutex{}
 )
 
-func HomeHandler(w http.ResponseWriter, r *http.Request) {
+func HomeHandler(c echo.Context) error {
 	log.Info("Home endpoint is hitting")
-	w.Write([]byte("Welcome to Music Playlist Api"))
+	return c.String(http.StatusOK, "Welcome to Music Playlist Api")
 }
 
-func CreateSongHandler(w http.ResponseWriter, r *http.Request) {
+func CreateSongHandler(c echo.Context) error {
 	var s Song
-	if err := json.NewDecoder(r.Body).Decode(&s); err != nil {
-		log.Warnf("CreateSong having invalid request %v", err)
-		http.Error(w, "Invalid request", http.StatusBadRequest)
-		return
+	if err := c.Bind(&s); err != nil {
+		log.Warnf("CreateSong: invalid request %v", err)
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "Invalid request"})
 	}
+
 	if s.Title == "" || s.Artist == "" {
-		log.Warn("CreateSong is missing required fields")
-		http.Error(w, "Title and Artist are required", http.StatusBadRequest)
-		return
+		log.Warn("CreateSong: missing required fields")
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "Title and Artist are required"})
 	}
 
 	s.ID = uuid.New().String()
@@ -50,12 +48,10 @@ func CreateSongHandler(w http.ResponseWriter, r *http.Request) {
 	mu.Unlock()
 
 	log.Infof("Song Created: %s", s.Title)
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]string{"message": "Song added", "song_id": s.ID})
-
+	return c.JSON(http.StatusCreated, echo.Map{"message": "Song added", "song_id": s.ID})
 }
 
-func FetchSongsHandler(w http.ResponseWriter, r *http.Request) {
+func FetchSongsHandler(c echo.Context) error {
 	mu.Lock()
 	defer mu.Unlock()
 
@@ -65,17 +61,16 @@ func FetchSongsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Infof("Fetched %d songs", len(playlist))
-	json.NewEncoder(w).Encode(map[string]interface{}{"playlist": playlist})
+	return c.JSON(http.StatusOK, echo.Map{"playlist": playlist})
 }
 
-func UpdateSongHandler(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
+func UpdateSongHandler(c echo.Context) error {
+	id := c.Param("id")
 
 	var updated Song
-	if err := json.NewDecoder(r.Body).Decode(&updated); err != nil {
+	if err := c.Bind(&updated); err != nil {
 		log.Warnf("UpdateSong: invalid request: %v", err)
-		http.Error(w, "Invalid request", http.StatusBadRequest)
-		return
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "Invalid request"})
 	}
 
 	mu.Lock()
@@ -84,8 +79,7 @@ func UpdateSongHandler(w http.ResponseWriter, r *http.Request) {
 	existing, ok := songs[id]
 	if !ok {
 		log.Warnf("UpdateSong: song not found, id=%s", id)
-		http.Error(w, "Song not found", http.StatusNotFound)
-		return
+		return c.JSON(http.StatusNotFound, echo.Map{"error": "Song not found"})
 	}
 
 	existing.Title = updated.Title
@@ -94,22 +88,21 @@ func UpdateSongHandler(w http.ResponseWriter, r *http.Request) {
 	songs[id] = existing
 
 	log.Infof("Song updated: id=%s, title=%s", id, existing.Title)
-	json.NewEncoder(w).Encode(map[string]string{"message": "Song updated"})
+	return c.JSON(http.StatusOK, echo.Map{"message": "Song updated"})
 }
 
-func DeleteSongHandler(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
+func DeleteSongHandler(c echo.Context) error {
+	id := c.Param("id")
 
 	mu.Lock()
 	defer mu.Unlock()
 
 	if _, ok := songs[id]; !ok {
-		log.Warnf("DeleteSong song is not found, id=%s", id)
-		http.Error(w, "Song not found", http.StatusNotFound)
-		return
+		log.Warnf("DeleteSong: song not found, id=%s", id)
+		return c.JSON(http.StatusNotFound, echo.Map{"error": "Song not found"})
 	}
 
 	delete(songs, id)
 	log.Infof("Song deleted: id=%s", id)
-	json.NewEncoder(w).Encode(map[string]string{"message": "Song deleted"})
+	return c.JSON(http.StatusOK, echo.Map{"message": "Song deleted"})
 }
