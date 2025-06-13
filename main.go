@@ -3,6 +3,9 @@ package main
 import (
 
 	function "github.com/aman-zulfiqar/MusicList-API-Task5/functions"
+	"github.com/aman-zulfiqar/MusicList-API-Task5/models"
+	"github.com/aman-zulfiqar/MusicList-API-Task5/config"
+
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	log "github.com/sirupsen/logrus"
@@ -15,6 +18,13 @@ func init() {
 }
 
 func main() {
+
+	config.InitDB()
+
+	// Auto-migrate Song model
+	if err := config.DB.AutoMigrate(&models.Song{}); err != nil {
+		log.Fatalf("Migration failed: %v", err)
+	}
 
 	e := echo.New()
 
