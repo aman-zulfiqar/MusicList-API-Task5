@@ -1,14 +1,10 @@
 package models
 
-import (
-	"github.com/google/uuid"
-	"gorm.io/gorm"
-)
+import "github.com/google/uuid"
 
 type Song struct {
-	ID     uuid.UUID `gorm:"type:uuid;primaryKey" json:"id"`
+	ID     uuid.UUID `json:"id"`
 	Title  string    `json:"title"`
 	Artist string    `json:"artist"`
 	Genre  string    `json:"genre"`
-	gorm.Model
 }
