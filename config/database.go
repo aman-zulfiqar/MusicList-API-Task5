@@ -1,33 +1,48 @@
 package config
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"os"
 
 	"github.com/joho/godotenv"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
+	_ "github.com/lib/pq"
 )
 
-var DB *gorm.DB
+var DB *sql.DB
 
 func InitDB() {
-	err := godotenv.Load()
-	if err != nil {
+	if err := godotenv.Load(); err != nil {
 		log.Fatal("Error loading .env file")
 	}
 
-	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		os.Getenv("DB_HOST"),
-		os.Getenv("DB_PORT"),
-		os.Getenv("DB_USER"),
-		os.Getenv("DB_PASSWORD"),
-		os.Getenv("DB_NAME"),
+	dsn := fmt.Sprintf(
+		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		getEnv("DB_HOST"),
+		getEnv("DB_PORT"),
+		getEnv("DB_USER"),
+		getEnv("DB_PASSWORD"),
+		getEnv("DB_NAME"),
 	)
 
-	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	var err error
+	DB, err = sql.Open("postgres", dsn)
 	if err != nil {
+		log.Fatalf("Failed to open DB: %v", err)
+	}
+
+	if err = DB.Ping(); err != nil {
 		log.Fatalf("Failed to connect to DB: %v", err)
 	}
+
+	log.Println("Connected to PostgreSQL database using raw SQL")
+}
+
+func getEnv(key string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		log.Fatalf("Missing environment variable: %s", key)
+	}
+	return value
 }
